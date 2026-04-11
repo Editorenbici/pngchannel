@@ -1,0 +1,177 @@
+@import "tailwindcss";
+
+/* ── Theme ────────────────────────────────────────── */
+:root {
+  --bg-primary: #0f1117;
+  --bg-secondary: #181a20;
+  --bg-card: #1e2028;
+  --bg-hover: #262930;
+  --border: #2a2d35;
+  --accent: #6366f1;
+  --accent-hover: #818cf8;
+  --text-primary: #e4e5ea;
+  --text-secondary: #a0a3b1;
+  --text-muted: #6b7084;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --code-bg: #1a1b26;
+  --scrollbar-track: #1a1b26;
+  --scrollbar-thumb: #2a2d35;
+}
+
+/* ── Base ────────────────────────────────────────── */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar ───────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border);
+}
+
+/* ── Prose / Markdown ────────────────────────────── */
+.prose {
+  color: var(--text-primary);
+  line-height: 1.7;
+}
+.prose h1, .prose h2, .prose h3, .prose h4 {
+  color: var(--text-primary);
+  font-weight: 600;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+}
+.prose h1 { font-size: 1.5rem; }
+.prose h2 { font-size: 1.25rem; }
+.prose h3 { font-size: 1.1rem; }
+.prose p {
+  margin-bottom: 1em;
+}
+.prose a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.prose ul, .prose ol {
+  padding-left: 1.5em;
+  margin-bottom: 1em;
+}
+.prose li {
+  margin-bottom: 0.25em;
+}
+.prose blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 1em;
+  margin: 1em 0;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+.prose code:not(pre code) {
+  background: var(--code-bg);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  font-size: 0.875em;
+  color: var(--accent-hover);
+}
+.prose pre {
+  background: var(--code-bg) !important;
+  border-radius: 8px;
+  padding: 1em;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+.prose pre code {
+  background: none !important;
+  padding: 0;
+  font-size: 0.85em;
+}
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+}
+.prose th, .prose td {
+  border: 1px solid var(--border);
+  padding: 0.5em 0.75em;
+  text-align: left;
+}
+.prose th {
+  background: var(--bg-card);
+  font-weight: 600;
+}
+.prose img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+.prose hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.5em 0;
+}
+
+/* ── Canvas: raw HTML / iframe ───────────────────── */
+.canvas-html {
+  width: 100%;
+  height: 100%;
+}
+.canvas-html iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  border-radius: 8px;
+}
+
+/* ── JSON viewer ─────────────────────────────────── */
+.json-viewer {
+  background: var(--code-bg);
+  border-radius: 8px;
+  padding: 1em;
+  overflow-x: auto;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.85em;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+/* ── Status dots ─────────────────────────────────── */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.status-dot.connected { background: var(--success); }
+.status-dot.disconnected { background: var(--error); }
+
+/* ── Transition helpers ──────────────────────────── */
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
