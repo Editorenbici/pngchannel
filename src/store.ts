@@ -43,18 +43,18 @@ export interface AgentProtocol {
 }
 
 // ── DiceBear ───────────────────────────────────────
-function dicebearUrl(seed: string, mouth: string, eyes: string): string {
-  return `https://api.dicebear.com/9.x/lorelei/png?seed=${encodeURIComponent(seed)}&backgroundColor=transparent&mouth=${mouth}&eyes=${eyes}`;
+function dicebearUrl(seed: string): string {
+  return `https://api.dicebear.com/9.x/lorelei/png?seed=${encodeURIComponent(seed)}&backgroundColor=transparent`;
 }
 
 function buildAvatarSet(seed: string): AvatarSet {
   return {
-    neutral:   dicebearUrl(seed, 'happy01', 'default'),
-    speaking:  dicebearUrl(seed, 'happy02', 'default'),
-    happy:     dicebearUrl(seed, 'happy04', 'default'),
-    sad:       dicebearUrl(seed, 'sad01', 'crying'),
-    thinking:  dicebearUrl(seed, 'sad01', 'closed'),
-    surprised: dicebearUrl(seed, 'surprised02', 'surprised'),
+    neutral:   dicebearUrl(seed),
+    speaking:  dicebearUrl(`${seed}-speaking`),
+    happy:     dicebearUrl(`${seed}-happy`),
+    sad:       dicebearUrl(`${seed}-sad`),
+    thinking:  dicebearUrl(`${seed}-thinking`),
+    surprised: dicebearUrl(`${seed}-surprised`),
   };
 }
 
