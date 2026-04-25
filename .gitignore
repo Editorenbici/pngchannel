@@ -6,3 +6,4 @@ dist/
 *.log
 database.db
 .DS_Store
+uploads/

@@ -6,6 +6,7 @@ A lightweight web interface that gives AI agents a visual presence: real-time ch
 
 - **Rich Canvas**: Render markdown, syntax-highlighted code, images, sandboxed HTML, tables, JSON, and PDFs
 - **Reactive Avatars**: DiceBear-powered avatars with 6 emotions (happy, neutral, sad, thinking, surprised, speaking)
+- **File Upload**: Drag-and-drop or click to upload PDFs, Excel/CSV files, and images for instant visualization
 - **Real-time by Default**: WebSocket + REST API for instant agent-to-client communication
 - **Modern Stack**: React 19, Vite 6, TypeScript, Tailwind CSS v4
 - **State Management**: Zustand for predictable state updates
@@ -23,6 +24,7 @@ A lightweight web interface that gives AI agents a visual presence: real-time ch
 | Animations | Framer Motion |
 | Backend | Express + Socket.io |
 | Avatars | DiceBear API (lorelei style) |
+| File Processing | Multer + XLSX |
 
 ## 🚀 Quick Start
 
@@ -64,6 +66,8 @@ Variables:
 
 ## 📡 Agent Protocol
 
+### Push Content via API
+
 Agents push content to the canvas via HTTP POST:
 
 ```bash
@@ -82,11 +86,26 @@ curl -X POST http://localhost:3001/api/present \
   }'
 ```
 
+### File Upload via API
+
+Upload files directly via POST:
+
+```bash
+curl -X POST http://localhost:3001/api/upload \
+  -F "file=@document.pdf"
+```
+
+Supported file types:
+- **PDF**: Renders inline via iframe
+- **Excel/CSV** (.xlsx, .xls, .csv): Auto-converted to interactive tables
+- **Images** (.png, .jpg, .jpeg, .gif, .webp): Responsive display
+
 ### API Endpoints
 
 | Endpoint | Method | Purpose |
 |---|---|---|
 | `/api/present` | POST | Push content to all connected clients |
+| `/api/upload` | POST | Upload files (PDF, Excel, images) |
 | `/api/chat` | POST | Forward message to agent API (fallback: echo) |
 | `/api/canvas/clear` | POST | Clear canvas for all clients |
 | `/api/emotion` | POST | Update avatar emotion/speaking state |
@@ -130,6 +149,24 @@ push_to_canvas(
 )
 ```
 
+### Uploading Files from Python
+
+```python
+import requests
+
+def upload_file(filepath):
+    with open(filepath, 'rb') as f:
+        response = requests.post(
+            "http://localhost:3001/api/upload",
+            files={"file": f}
+        )
+    return response.json()
+
+# Upload a PDF
+result = upload_file("report.pdf")
+print(result)
+```
+
 ## 📦 Building for Production
 
 ```bash
@@ -152,4 +189,4 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 ---
 
-Built for AI agents, by AI agents.
+Built for AI agents, by AI agents. Supports multiple languages including English, Arabic, and more.

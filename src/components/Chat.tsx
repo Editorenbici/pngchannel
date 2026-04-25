@@ -1,12 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Trash2 } from 'lucide-react';
+import { Send, Loader2, Trash2, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../store';
 
 export const Chat: React.FC = () => {
   const { messages, addMessage, clearMessages, isLoading, setIsLoading, isConnected } = useStore();
   const [input, setInput] = useState('');
+  const [uploading, setUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -15,6 +17,21 @@ export const Chat: React.FC = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const getMessageStyle = (role: string) => {
+    if (role === 'user') {
+      return {
+        background: 'var(--accent)',
+        color: '#fff',
+        borderBottomRightRadius: '4px',
+      };
+    }
+    return {
+      background: 'var(--bg-card)',
+      color: 'var(--text-primary)',
+      borderBottomLeftRadius: '4px',
+    };
+  };
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -40,7 +57,6 @@ export const Chat: React.FC = () => {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
 
-      // Update store with agent response
       if (data.text) {
         addMessage({ role: 'agent', text: data.text });
       }
@@ -54,9 +70,48 @@ export const Chat: React.FC = () => {
         useStore.getState().setIsSpeaking(data.speaking);
       }
     } catch (err) {
-      addMessage({ role: 'agent', text: 'Error conectando al agente.' });
+      addMessage({ role: 'agent', text: 'Error connecting to agent.' });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error('Upload failed');
+      
+      const data = await response.json();
+      
+      if (data.ok) {
+        addMessage({ 
+          role: 'agent', 
+          text: `File uploaded: ${file.name}` 
+        });
+        
+        if (data.file?.canvasContent) {
+          useStore.getState().setCanvasContent(data.file.canvasContent);
+          useStore.getState().setEmotion('happy');
+        }
+      }
+    } catch (err) {
+      addMessage({ role: 'agent', text: 'File upload failed.' });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -82,19 +137,7 @@ export const Chat: React.FC = () => {
             >
               <div
                 className="max-w-[85%] px-3 py-2 rounded-xl text-sm leading-relaxed"
-                style={
-                  msg.role === 'user'
-                    ? {
-                        background: 'var(--accent)',
-                        color: '#fff',
-                        borderBottomRightRadius: '4px',
-                      }
-                    : {
-                        background: 'var(--bg-card)',
-                        color: 'var(--text-primary)',
-                        borderBottomLeftRadius: '4px',
-                      }
-                }
+                style={getMessageStyle(msg.role)}
               >
                 {msg.text}
               </div>
@@ -121,6 +164,24 @@ export const Chat: React.FC = () => {
           </motion.div>
         )}
 
+        {uploading && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex justify-start"
+          >
+            <div
+              className="px-3 py-2 rounded-xl flex items-center gap-2"
+              style={{ background: 'var(--bg-card)' }}
+            >
+              <Loader2 size={16} className="animate-spin" />
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                Uploading file...
+              </span>
+            </div>
+          </motion.div>
+        )}
+
         <div ref={messagesEndRef} />
       </div>
 
@@ -130,11 +191,31 @@ export const Chat: React.FC = () => {
         style={{ borderColor: 'var(--border)' }}
       >
         <div className="flex gap-2 items-end">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            accept=".pdf,.xlsx,.xls,.csv,.png,.jpg,.jpeg,.gif,.webp"
+            className="hidden"
+          />
+          
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="p-2 rounded-lg transition-colors cursor-pointer disabled:opacity-40"
+            style={{ color: 'var(--text-muted)' }}
+            title="Upload file (PDF, Excel, Image)"
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+          >
+            <Upload size={16} />
+          </button>
+
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Escribe un mensaje..."
+            placeholder="Type a message..."
             rows={1}
             className="flex-1 resize-none rounded-xl px-3 py-2 text-sm outline-none transition-colors"
             style={{
@@ -152,7 +233,7 @@ export const Chat: React.FC = () => {
               onClick={clearMessages}
               className="p-2 rounded-lg transition-colors cursor-pointer"
               style={{ color: 'var(--text-muted)' }}
-              title="Limpiar chat"
+              title="Clear chat"
               onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--error)')}
               onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
             >
@@ -176,7 +257,7 @@ export const Chat: React.FC = () => {
         {/* Connection hint */}
         {!isConnected && (
           <p className="text-xs mt-2 text-center" style={{ color: 'var(--error)' }}>
-            Desconectado del servidor
+            Disconnected from server
           </p>
         )}
       </div>

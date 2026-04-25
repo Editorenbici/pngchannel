@@ -2,20 +2,53 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import multer from 'multer';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import XLSX from 'xlsx';
 
 // ── Config ─────────────────────────────────────────
 const PORT = parseInt(process.env.PORT || '3001', 10);
 const AGENT_API_URL = process.env.AGENT_API_URL || 'http://localhost:3000';
 const CHANNEL_SECRET = process.env.CHANNEL_SECRET || 'pngchannel-secret';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const uploadsDir = path.join(__dirname, '../uploads');
+
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '5mb' }));
+app.use(express.json({ limit: '10mb' }));
+app.use('/uploads', express.static(uploadsDir));
 
+// ── File Upload ────────────────────────────────────
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadsDir),
+  filename: (_req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['.pdf', '.xlsx', '.xls', '.csv', '.png', '.jpg', '.jpeg', '.gif', '.webp'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowed.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only PDF, Excel, CSV, and images are allowed.'));
+    }
+  }
+});
+
+// ── HTTP Server & Socket.io ────────────────────────
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: { origin: '*', methods: ['GET', 'POST'] },
-  maxHttpBufferSize: 5e6, // 5MB
+  maxHttpBufferSize: 10e6, // 10MB
 });
 
 // ── State ──────────────────────────────────────────
@@ -27,7 +60,6 @@ io.on('connection', (socket) => {
   console.log(`[PNGChannel] Client connected: ${socket.id} (${clients.size} total)`);
 
   socket.on('agent_message', (data) => {
-    // Broadcast to all clients (including sender)
     io.emit('agent_message', data);
   });
 
@@ -47,8 +79,6 @@ app.get('/api/health', (_req, res) => {
 });
 
 // ── POST /api/present ──────────────────────────────
-// Main endpoint for agents to push content to canvas.
-// Accepts the AgentProtocol object directly.
 app.post('/api/present', (req, res) => {
   const data = req.body;
 
@@ -56,16 +86,80 @@ app.post('/api/present', (req, res) => {
     return res.status(400).json({ error: 'Invalid body' });
   }
 
-  // Broadcast to all connected clients
   io.emit('agent_message', data);
   console.log(`[PNGChannel] Present → ${clients.size} clients`);
 
   res.json({ ok: true, clients: clients.size });
 });
 
+// ── POST /api/upload ──────────────────────────────
+app.post('/api/upload', upload.single('file'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  const fileUrl = `/uploads/${req.file.filename}`;
+  const ext = path.extname(req.file.originalname).toLowerCase();
+  const originalName = req.file.originalname;
+
+  let canvasContent = null;
+
+  try {
+    // Handle Excel/CSV files
+    if (['.xlsx', '.xls', '.csv'].includes(ext)) {
+      const workbook = XLSX.readFile(req.file.path);
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(sheet);
+      
+      canvasContent = {
+        type: 'table',
+        content: jsonData,
+        title: originalName
+      };
+    }
+    // Handle PDF files
+    else if (ext === '.pdf') {
+      canvasContent = {
+        type: 'pdf',
+        content: fileUrl,
+        title: originalName
+      };
+    }
+    // Handle images
+    else if (['.png', '.jpg', '.jpeg', '.gif', '.webp'].includes(ext)) {
+      canvasContent = {
+        type: 'image',
+        content: fileUrl,
+        title: originalName
+      };
+    }
+
+    // Broadcast to clients
+    const message = {
+      text: `File uploaded: ${originalName}`,
+      emotion: 'happy',
+      canvasContent
+    };
+    
+    io.emit('agent_message', message);
+    
+    res.json({
+      ok: true,
+      file: {
+        url: fileUrl,
+        name: originalName,
+        type: ext,
+        canvasContent
+      }
+    });
+  } catch (error: any) {
+    console.error(`[PNGChannel] File processing error: ${error.message}`);
+    res.status(500).json({ error: 'File processing failed', details: error.message });
+  }
+});
+
 // ── POST /api/chat ─────────────────────────────────
-// Forwards chat messages to the agent API and returns response.
-// Fallback: echo if no agent is configured.
 app.post('/api/chat', async (req, res) => {
   const { message, history } = req.body;
 
@@ -90,7 +184,6 @@ app.post('/api/chat', async (req, res) => {
 
     const data = await response.json();
 
-    // Broadcast agent response to all clients
     if (data && typeof data === 'object') {
       io.emit('agent_message', data);
     }
@@ -99,7 +192,6 @@ app.post('/api/chat', async (req, res) => {
   } catch (error: any) {
     console.error(`[PNGChannel] Agent API error: ${error.message}`);
 
-    // Fallback: echo mode
     const fallback = {
       text: `Echo: ${message}`,
       emotion: 'neutral',
@@ -133,6 +225,7 @@ httpServer.listen(PORT, () => {
   console.log(`[PNGChannel] Agent API: ${AGENT_API_URL}`);
   console.log(`[PNGChannel] Endpoints:`);
   console.log(`  POST /api/present    → Push content to canvas`);
+  console.log(`  POST /api/upload     → Upload files (PDF, Excel, images)`);
   console.log(`  POST /api/chat       → Forward to agent API`);
   console.log(`  POST /api/canvas/clear → Clear canvas`);
   console.log(`  POST /api/emotion    → Set avatar emotion`);
